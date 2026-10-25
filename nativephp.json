@@ -1,29 +1,72 @@
 {
-    "namespace": "FtreeBilling",
+    "name": "protendai/nativephp-billing",
+    "version": "1.0.0",
+    "description": "Google Play Billing for NativePHP Mobile v4: subscriptions (base plans, free trials, intro offers, upgrades) and one-time products (consumable and non-consumable), with purchase tokens for server-side verification. Android only for now; iOS (StoreKit 2) is on the roadmap.",
+    "namespace": "ProtendaiBilling",
+    "keywords": [
+        "billing",
+        "in-app purchases",
+        "subscriptions",
+        "google play",
+        "payments"
+    ],
+    "category": "payments",
+    "license": "MIT",
+    "pricing": {
+        "type": "free"
+    },
+    "author": {
+        "name": "Tendai Karuma",
+        "email": "karumatendai@gmail.com",
+        "url": "https://github.com/protendai"
+    },
+    "homepage": "https://github.com/protendai/nativephp-billing",
+    "repository": "https://github.com/protendai/nativephp-billing",
+    "funding": [],
+    "platforms": [
+        "android"
+    ],
     "bridge_functions": [
         {
-            "name": "FtreeBilling.Products",
-            "android": "com.protendai.plugins.billing.BillingFunctions.Products",
-            "description": "Load subscription products and their base plans from Google Play"
+            "name": "ProtendaiBilling.Products",
+            "android": "com.protendai.billing.BillingFunctions.Products",
+            "ios": "ProtendaiBillingFunctions.Products",
+            "description": "Load subscription or one-time products with prices, base plans and offers. Async: ProductsLoaded."
         },
         {
-            "name": "FtreeBilling.Subscribe",
-            "android": "com.protendai.plugins.billing.BillingFunctions.Subscribe",
-            "description": "Open Google Play's purchase sheet for a base plan"
+            "name": "ProtendaiBilling.Purchase",
+            "android": "com.protendai.billing.BillingFunctions.Purchase",
+            "ios": "ProtendaiBillingFunctions.Purchase",
+            "description": "Open Google Play's purchase sheet for a subscription base plan/offer or a one-time product. Async: PurchaseUpdated."
         },
         {
-            "name": "FtreeBilling.Restore",
-            "android": "com.protendai.plugins.billing.BillingFunctions.Restore",
-            "description": "List the subscriptions this Google account already has"
+            "name": "ProtendaiBilling.Restore",
+            "android": "com.protendai.billing.BillingFunctions.Restore",
+            "ios": "ProtendaiBillingFunctions.Restore",
+            "description": "List what the Google account owns now (active subscriptions, unconsumed one-time products). Async: PurchasesRestored."
+        },
+        {
+            "name": "ProtendaiBilling.Acknowledge",
+            "android": "com.protendai.billing.BillingFunctions.Acknowledge",
+            "ios": "ProtendaiBillingFunctions.Acknowledge",
+            "description": "Acknowledge a purchase on the device (apps without a server). Async: PurchaseAcknowledged."
+        },
+        {
+            "name": "ProtendaiBilling.Consume",
+            "android": "com.protendai.billing.BillingFunctions.Consume",
+            "ios": "ProtendaiBillingFunctions.Consume",
+            "description": "Consume a one-time purchase so it can be bought again. Async: PurchaseConsumed."
         }
     ],
     "events": [
-        "Ftree\\Billing\\Events\\ProductsLoaded",
-        "Ftree\\Billing\\Events\\PurchaseUpdated",
-        "Ftree\\Billing\\Events\\PurchasesRestored"
+        "Protendai\\Billing\\Events\\ProductsLoaded",
+        "Protendai\\Billing\\Events\\PurchaseUpdated",
+        "Protendai\\Billing\\Events\\PurchasesRestored",
+        "Protendai\\Billing\\Events\\PurchaseAcknowledged",
+        "Protendai\\Billing\\Events\\PurchaseConsumed"
     ],
     "android": {
-        "min_version": 33,
+        "min_version": 21,
         "permissions": [
             "com.android.vending.BILLING"
         ],
@@ -34,11 +77,11 @@
         }
     },
     "ios": {
-        "min_version": "18.2",
-        "info_plist": {},
+        "min_version": "15.0",
         "dependencies": {
             "swift_packages": [],
             "pods": []
         }
-    }
+    },
+    "service_provider": "Protendai\\Billing\\BillingServiceProvider"
 }
