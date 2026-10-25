@@ -1,0 +1,17 @@
+{
+    "name": "@protendai/nativephp-billing",
+    "version": "1.0.0",
+    "description": "JavaScript bridge for protendai/nativephp-billing: Google Play Billing in NativePHP Mobile apps (Inertia, Vue, React).",
+    "private": false,
+    "type": "module",
+    "main": "resources/js/index.js",
+    "module": "resources/js/index.js",
+    "types": "resources/js/index.d.ts",
+    "files": ["resources/js"],
+    "keywords": ["nativephp", "billing", "google-play", "in-app-purchase", "subscriptions"],
+    "author": "Tendai Karuma <karumatendai@gmail.com>",
+    "license": "MIT",
+    "homepage": "https://github.com/protendai/nativephp-billing",
+    "repository": { "type": "git", "url": "https://github.com/protendai/nativephp-billing.git" },
+    "bugs": { "url": "https://github.com/protendai/nativephp-billing/issues" }
+}
