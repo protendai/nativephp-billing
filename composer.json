@@ -1,0 +1,25 @@
+{
+    "name": "protendai/ftree-billing",
+    "description": "Google Play subscriptions for the fTree app (NativePHP Mobile plugin)",
+    "type": "nativephp-plugin",
+    "license": "proprietary",
+    "require": {
+        "php": "^8.3",
+        "nativephp/mobile": "^4.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Ftree\\Billing\\": "src/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Ftree\\Billing\\BillingServiceProvider"
+            ]
+        },
+        "nativephp": {
+            "manifest": "nativephp.json"
+        }
+    }
+}

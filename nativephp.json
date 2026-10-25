@@ -1,0 +1,44 @@
+{
+    "namespace": "FtreeBilling",
+    "bridge_functions": [
+        {
+            "name": "FtreeBilling.Products",
+            "android": "com.protendai.plugins.billing.BillingFunctions.Products",
+            "description": "Load subscription products and their base plans from Google Play"
+        },
+        {
+            "name": "FtreeBilling.Subscribe",
+            "android": "com.protendai.plugins.billing.BillingFunctions.Subscribe",
+            "description": "Open Google Play's purchase sheet for a base plan"
+        },
+        {
+            "name": "FtreeBilling.Restore",
+            "android": "com.protendai.plugins.billing.BillingFunctions.Restore",
+            "description": "List the subscriptions this Google account already has"
+        }
+    ],
+    "events": [
+        "Ftree\\Billing\\Events\\ProductsLoaded",
+        "Ftree\\Billing\\Events\\PurchaseUpdated",
+        "Ftree\\Billing\\Events\\PurchasesRestored"
+    ],
+    "android": {
+        "min_version": 33,
+        "permissions": [
+            "com.android.vending.BILLING"
+        ],
+        "dependencies": {
+            "implementation": [
+                "com.android.billingclient:billing:8.0.0"
+            ]
+        }
+    },
+    "ios": {
+        "min_version": "18.2",
+        "info_plist": {},
+        "dependencies": {
+            "swift_packages": [],
+            "pods": []
+        }
+    }
+}
