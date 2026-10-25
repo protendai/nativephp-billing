@@ -1,25 +1,53 @@
 {
-    "name": "protendai/ftree-billing",
-    "description": "Google Play subscriptions for the fTree app (NativePHP Mobile plugin)",
+    "name": "protendai/nativephp-billing",
+    "description": "Google Play Billing for NativePHP Mobile v4: subscriptions with offers and free trials, one-time and consumable products, restore, acknowledge and consume, with purchase tokens for server-side verification. Android (iOS StoreKit 2 planned).",
     "type": "nativephp-plugin",
-    "license": "proprietary",
+    "license": "MIT",
+    "keywords": ["nativephp", "nativephp-plugin", "billing", "in-app-purchase", "subscriptions", "google-play", "play-billing", "laravel", "mobile"],
+    "homepage": "https://github.com/protendai/nativephp-billing",
+    "support": {
+        "issues": "https://github.com/protendai/nativephp-billing/issues",
+        "source": "https://github.com/protendai/nativephp-billing"
+    },
+    "authors": [
+        {
+            "name": "Tendai Karuma",
+            "email": "karumatendai@gmail.com"
+        }
+    ],
     "require": {
         "php": "^8.3",
         "nativephp/mobile": "^4.0"
     },
+    "require-dev": {
+        "pestphp/pest": "^3.0|^4.0|^5.0",
+        "laravel/framework": "^11.0|^12.0|^13.0"
+    },
     "autoload": {
         "psr-4": {
-            "Ftree\\Billing\\": "src/"
+            "Protendai\\Billing\\": "src/"
         }
     },
     "extra": {
         "laravel": {
             "providers": [
-                "Ftree\\Billing\\BillingServiceProvider"
-            ]
+                "Protendai\\Billing\\BillingServiceProvider"
+            ],
+            "aliases": {
+                "Billing": "Protendai\\Billing\\Facades\\Billing"
+            }
         },
         "nativephp": {
             "manifest": "nativephp.json"
         }
-    }
+    },
+    "scripts": {
+        "test": "pest"
+    },
+    "config": {
+        "allow-plugins": {
+            "pestphp/pest-plugin": true
+        }
+    },
+    "minimum-stability": "stable"
 }
