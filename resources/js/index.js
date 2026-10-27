@@ -1,11 +1,12 @@
 /**
- * protendai/nativephp-billing — Google Play Billing for NativePHP Mobile (Inertia / Vue / React).
+ * protendai/nativephp-billing: in-app purchases for NativePHP Mobile (Inertia / Vue / React),
+ * Google Play Billing on Android and StoreKit 2 on iOS.
  *
  * Every call resolves straight away with { id, status: 'started' }; the result arrives
  * later as a native event carrying the same id. Listen with onProductsLoaded(),
  * onPurchaseUpdated() etc. (or the core's On(Events.X, cb)).
  *
- * On iOS every call rejects with an UNSUPPORTED error: check isAvailable() first.
+ * On iOS each subscription period is its own App Store product: pick product ids with platform().
  *
  * @example
  * import { products, subscribe, onPurchaseUpdated } from '@protendai/nativephp-billing';
@@ -31,6 +32,8 @@ export const Status = Object.freeze({
     Cancelled: 'cancelled',
     AlreadyOwned: 'already_owned',
     Failed: 'failed',
+    /** iOS only: a purchase was refunded or revoked while the app was open. */
+    Revoked: 'revoked',
 });
 
 /** Event class names, as dispatched by the native side. */
@@ -66,14 +69,14 @@ async function bridgeCall(method, params = {}) {
     const result = await response.json();
 
     if (result.status === 'error') {
-        const error = new Error(result.message || 'Google Play billing could not start');
+        const error = new Error(result.message || 'Billing could not start');
         error.code = result.code;
         throw error;
     }
 
     const data = result.data;
     if (data && data.status === 'error') {
-        const error = new Error(data.message || 'Google Play billing could not start');
+        const error = new Error(data.message || 'Billing could not start');
         error.code = data.code;
         throw error;
     }
@@ -82,10 +85,18 @@ async function bridgeCall(method, params = {}) {
 }
 
 /**
- * Whether purchases can be made here (an Android build with this plugin).
+ * Whether purchases can be made here (an Android or iOS build with this plugin).
  * @returns {Promise<boolean>}
  */
 export async function isAvailable() {
+    return (await platform()) !== null;
+}
+
+/**
+ * The store this build sells through: 'android' (Google Play), 'ios' (App Store), or null.
+ * @returns {Promise<'android'|'ios'|null>}
+ */
+export async function platform() {
     try {
         const response = await fetch(baseUrl, {
             method: 'POST',
@@ -99,9 +110,9 @@ export async function isAvailable() {
         // Device.GetInfo answers { info: "<json>" }, with platform "android" or "ios".
         const data = result.data?.data ?? result.data;
         const info = typeof data?.info === 'string' ? JSON.parse(data.info) : (data?.info ?? data);
-        return info?.platform === 'android';
+        return ['android', 'ios'].includes(info?.platform) ? info.platform : null;
     } catch {
-        return false;
+        return null;
     }
 }
 
@@ -150,12 +161,13 @@ export async function buy(options) {
 }
 
 /**
- * List what the Google account owns now. Answer: PurchasesRestored.
+ * List what the Google or Apple account owns now. Answer: PurchasesRestored.
  * @param {'subs'|'inapp'} [type] Omit for both
  * @param {string} [id]
+ * @param {boolean} [sync] iOS: ask the App Store first (may ask the user to sign in; only from a Restore button)
  */
-export async function restore(type, id) {
-    return bridgeCall('ProtendaiBilling.Restore', { type, id });
+export async function restore(type, id, sync = false) {
+    return bridgeCall('ProtendaiBilling.Restore', { type, id, sync: sync || undefined });
 }
 
 /**
@@ -204,7 +216,7 @@ export const onPurchaseConsumed = (cb) => on(Events.PurchaseConsumed, cb);
 
 export const Billing = {
     SUBS, INAPP, Status, Events,
-    isAvailable, products, purchase, subscribe, buy, restore, acknowledge, consume,
+    isAvailable, platform, products, purchase, subscribe, buy, restore, acknowledge, consume,
     on, onProductsLoaded, onPurchaseUpdated, onPurchasesRestored, onPurchaseAcknowledged, onPurchaseConsumed,
 };
 

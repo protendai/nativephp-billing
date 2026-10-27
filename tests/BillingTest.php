@@ -15,16 +15,37 @@ describe('available()', function () {
         expect(app(Billing::class)->available())->toBeTrue();
     });
 
-    it('is false on iOS, where StoreKit is not implemented yet', function () {
+    it('is true in an iOS build with the plugin (StoreKit 2)', function () {
         Platform::set(Platform::IOS);
 
-        expect(app(Billing::class)->available())->toBeFalse();
+        expect(app(Billing::class)->available())->toBeTrue();
     });
 
     it('is false when the app was built without the plugin', function () {
         $this->bridge->withoutCapability(Billing::PRODUCTS);
 
         expect(app(Billing::class)->available())->toBeFalse();
+    });
+});
+
+describe('platform()', function () {
+    it('names the store this build sells through', function () {
+        expect(app(Billing::class)->platform())->toBe('android');
+
+        Platform::set(Platform::IOS);
+        expect(app(Billing::class)->platform())->toBe('ios');
+    });
+});
+
+describe('appAccountToken()', function () {
+    it('keeps a UUID, lowercased', function () {
+        expect(Billing::appAccountToken('3F2504E0-4F89-41D3-9A0C-0305E82C3301'))->toBe('3f2504e0-4f89-41d3-9a0c-0305e82c3301');
+    });
+
+    it('turns any other id into the same version 5 UUID the iOS code makes', function () {
+        // Checked against the Swift AccountToken and Ramsey's Uuid::uuid5.
+        expect(Billing::appAccountToken('01k8abcdefghjkmnpqrstvwxyz'))->toBe('88e22f60-2f96-5e86-945e-c11f1483ce74')
+            ->and(Billing::appAccountToken('42'))->toMatch('/^[0-9a-f]{8}-[0-9a-f]{4}-5[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/');
     });
 });
 
@@ -74,6 +95,11 @@ describe('argument shaping', function () {
 
         BillingFacade::restore(Billing::SUBS, 'r2');
         expect(lastCall($this->bridge)['params'])->toBe(['id' => 'r2', 'type' => 'subs']);
+    });
+
+    it('asks the App Store to sync only when told to', function () {
+        BillingFacade::restore(id: 'r3', sync: true);
+        expect(lastCall($this->bridge)['params'])->toBe(['id' => 'r3', 'sync' => true]);
     });
 
     it('acknowledges and consumes by purchase token', function () {

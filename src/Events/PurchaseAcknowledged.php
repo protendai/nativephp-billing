@@ -5,7 +5,7 @@ namespace Protendai\Billing\Events;
 use Illuminate\Foundation\Events\Dispatchable;
 
 /**
- * Answers Billing::acknowledge(): $ok is true when Google Play accepted it.
+ * Answers Billing::acknowledge(): $ok is true when the store accepted it (on iOS: the transaction is finished).
  */
 class PurchaseAcknowledged
 {

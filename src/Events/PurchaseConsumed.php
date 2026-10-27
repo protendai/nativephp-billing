@@ -5,7 +5,7 @@ namespace Protendai\Billing\Events;
 use Illuminate\Foundation\Events\Dispatchable;
 
 /**
- * Answers Billing::consume(): $ok is true when Google Play accepted it.
+ * Answers Billing::consume(): $ok is true when the store accepted it (on iOS: the transaction is finished).
  */
 class PurchaseConsumed
 {

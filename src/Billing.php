@@ -7,8 +7,8 @@ use Native\Mobile\Platform;
 use Protendai\Billing\Exceptions\BillingException;
 
 /**
- * Google Play Billing for NativePHP Mobile: subscriptions and one-time
- * products (consumable or not).
+ * In-app purchases for NativePHP Mobile: Google Play Billing on Android and
+ * StoreKit 2 on iOS. Subscriptions and one-time products (consumable or not).
  *
  * Every method returns a request id straight away; the answer arrives later
  * as an event carrying the same id: ProductsLoaded, PurchaseUpdated,
@@ -16,7 +16,9 @@ use Protendai\Billing\Exceptions\BillingException;
  *
  * Purchases are never acknowledged automatically. Verify them on your server
  * and acknowledge them there (recommended), or call acknowledge() / consume().
- * Google refunds purchases that are not acknowledged within three days.
+ * Google refunds purchases that are not acknowledged within three days. On
+ * iOS the app finishes transactions itself: call acknowledge() (or consume())
+ * once your server has granted the purchase.
  */
 class Billing
 {
@@ -37,28 +39,64 @@ class Billing
 
     public const CONSUME = 'ProtendaiBilling.Consume';
 
+    /** RFC 4122 namespace of the name-based iOS appAccountToken (see appAccountToken()). */
+    public const ACCOUNT_TOKEN_NAMESPACE = 'c4cb9250-ea5d-49a3-aaca-c096eeb2f970';
+
     /** Subscription replacement modes for upgrades and downgrades (oldPurchaseToken). */
     public const REPLACEMENT_MODES = ['with_time_proration', 'charge_prorated_price', 'charge_full_price', 'without_proration', 'deferred'];
 
     /**
-     * Whether purchases can be made here: an Android build with this plugin.
-     * False on iOS (not supported yet) and outside the mobile runtime.
+     * Whether purchases can be made here: an Android or iOS build with this
+     * plugin. False outside the mobile runtime.
      */
     public function available(): bool
     {
         if (! function_exists('nativephp_call')) {
             return false;
         }
-        if (function_exists('nativephp_can') && ! nativephp_can(self::PRODUCTS)) {
-            return false;
-        }
 
-        return ! $this->isIos();
+        return ! function_exists('nativephp_can') || nativephp_can(self::PRODUCTS);
     }
 
     /**
-     * Load products from Google Play, with prices in the user's currency and,
+     * The store this build sells through: 'ios' (App Store), 'android'
+     * (Google Play), or null outside the mobile runtime. Use it to pick
+     * product ids: on iOS each subscription period is its own product.
+     */
+    public function platform(): ?string
+    {
+        if (! function_exists('nativephp_call')) {
+            return null;
+        }
+
+        return $this->isIos() ? 'ios' : 'android';
+    }
+
+    /**
+     * The appAccountToken iOS stores on a transaction bought with this
+     * accountId: the id itself when it is a UUID, otherwise a name-based
+     * (version 5) UUID. Your server matches App Store transactions to buyers
+     * with it.
+     */
+    public static function appAccountToken(string $accountId): string
+    {
+        if (preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $accountId)) {
+            return strtolower($accountId);
+        }
+
+        $hash = sha1(hex2bin(str_replace('-', '', self::ACCOUNT_TOKEN_NAMESPACE)).$accountId);
+        $bytes = str_split(substr($hash, 0, 32), 2);
+        $bytes[6] = sprintf('%02x', (hexdec($bytes[6]) & 0x0F) | 0x50);
+        $bytes[8] = sprintf('%02x', (hexdec($bytes[8]) & 0x3F) | 0x80);
+        $hex = implode('', $bytes);
+
+        return substr($hex, 0, 8).'-'.substr($hex, 8, 4).'-'.substr($hex, 12, 4).'-'.substr($hex, 16, 4).'-'.substr($hex, 20, 12);
+    }
+
+    /**
+     * Load products from the store, with prices in the user's currency and,
      * for subscriptions, every base plan and offer this account may buy.
+     * On iOS each subscription product has one plan, with its own id.
      *
      * @param  list<string>  $productIds
      * @param  string  $type  Billing::SUBS or Billing::INAPP
@@ -73,13 +111,18 @@ class Billing
     }
 
     /**
-     * Open Google Play's purchase sheet for a subscription base plan.
+     * Open the store's purchase sheet for a subscription base plan.
+     *
+     * On iOS $basePlanId, the offer options, $oldPurchaseToken and
+     * $replacementMode are ignored: buy the period's own product id, an
+     * eligible introductory offer applies by itself, and products in one
+     * subscription group replace each other.
      *
      * Without $offerId or $offerTags the base plan is bought at its regular
      * price. Pass an offer id (or tags) to apply a free trial or introductory
      * price; products() lists only the offers this account is eligible for.
      *
-     * @param  string|null  $accountId  Your id for the buyer (max 64 chars, no personal data), returned on the purchase and to your server as obfuscatedExternalAccountId
+     * @param  string|null  $accountId  Your id for the buyer (max 64 chars, no personal data), returned on the purchase and to your server as obfuscatedExternalAccountId (Android) or appAccountToken (iOS, see appAccountToken())
      * @param  string|null  $oldPurchaseToken  The purchase token of the subscription this one replaces (upgrade/downgrade)
      * @param  list<string>  $offerTags  Pick the cheapest eligible offer carrying all of these tags
      * @param  string|null  $replacementMode  One of Billing::REPLACEMENT_MODES; default with_time_proration
@@ -108,7 +151,7 @@ class Billing
     }
 
     /**
-     * Open Google Play's purchase sheet for a one-time product.
+     * Open the store's purchase sheet for a one-time product.
      *
      * Afterwards, consume() consumables (so they can be bought again) and
      * acknowledge() everything else, unless your server does it.
@@ -137,21 +180,24 @@ class Billing
     }
 
     /**
-     * Ask Google Play what this account owns now: active subscriptions and
+     * Ask the store what this account owns now: active subscriptions and
      * unconsumed one-time products, including pending and unacknowledged ones.
      * Call it when the app starts to finish purchases that were interrupted.
      *
      * @param  string|null  $type  Billing::SUBS, Billing::INAPP, or null for both
+     * @param  bool  $sync  iOS: ask the App Store first (it may ask the user to sign in, so only from a Restore button). Ignored on Android.
      * @return string The request id, echoed on PurchasesRestored
      */
-    public function restore(?string $type = null, ?string $id = null): string
+    public function restore(?string $type = null, ?string $id = null, bool $sync = false): string
     {
-        return $this->call(self::RESTORE, ['type' => $type], $id);
+        return $this->call(self::RESTORE, ['type' => $type, 'sync' => $sync ?: null], $id);
     }
 
     /**
      * Acknowledge a purchase on the device, for apps without a server.
      * With a server, acknowledge there after verifying the purchase instead.
+     * On iOS this finishes the transaction: call it once the purchase is
+     * granted, server or not.
      *
      * @return string The request id, echoed on PurchaseAcknowledged
      */
@@ -172,7 +218,7 @@ class Billing
     }
 
     /**
-     * @throws BillingException when the device refuses the request (iOS, bad arguments)
+     * @throws BillingException when the device refuses the request (bad arguments, a build without the plugin)
      */
     protected function call(string $method, array $parameters, ?string $id): string
     {
@@ -189,7 +235,7 @@ class Billing
         $response = json_decode((string) nativephp_call($method, json_encode((object) $parameters)), true);
 
         if (is_array($response) && ($response['status'] ?? null) === 'error') {
-            throw new BillingException($response['message'] ?? 'Google Play billing could not start', $response['code'] ?? null);
+            throw new BillingException($response['message'] ?? 'Billing could not start', $response['code'] ?? null);
         }
 
         return $id;

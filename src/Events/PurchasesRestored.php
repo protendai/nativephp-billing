@@ -5,7 +5,7 @@ namespace Protendai\Billing\Events;
 use Illuminate\Foundation\Events\Dispatchable;
 
 /**
- * What the Google account owns now, answering Billing::restore(): active
+ * What the Google or Apple account owns now, answering Billing::restore(): active
  * subscriptions and unconsumed one-time products, with the same purchase
  * shape as PurchaseUpdated (including pending and unacknowledged ones).
  */

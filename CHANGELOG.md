@@ -6,6 +6,23 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-10-27
+
+### Added
+- iOS support with StoreKit 2 (iOS 15+): products with prices, subscription periods and eligible introductory
+  offers, purchases with `appAccountToken`, restore from current entitlements and unfinished transactions,
+  acknowledge/consume finish the transaction, and a `Transaction.updates` listener for renewals, Ask to Buy,
+  purchases on other devices and refunds. Same functions and events as Android.
+- `Billing::platform()` (`'android'`, `'ios'` or null) and `platform()` in JavaScript.
+- `Billing::appAccountToken($accountId)`: the UUID iOS stores for an account id, for matching transactions on the server.
+- `restore(sync: true)`: asks the App Store to sync first (for a Restore Purchases button). Ignored on Android.
+- iOS purchase fields `platform`, `transactionId`, `originalTransactionId`, `expiryTime`, `revoked`, `environment`
+  and `jws`; product fields `kind` and `subscriptionGroupId`; `PurchaseUpdated` status `revoked`; failure code
+  `unverified`.
+
+### Changed
+- `Billing::available()` is true in iOS builds; calls no longer throw `UNSUPPORTED` on iOS.
+
 ## [1.0.0] - 2026-10-25
 
 First public release, extracted from an in-app plugin.

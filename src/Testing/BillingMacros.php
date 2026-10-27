@@ -32,7 +32,7 @@ class BillingMacros
             return $this->assertNotCalled(Billing::PURCHASE);
         });
 
-        /** Assert Billing::restore() asked Google Play for the account's purchases. */
+        /** Assert Billing::restore() asked the store for the account's purchases. */
         FakeBridge::macro('assertPurchasesRestoreRequested', function (?callable $filter = null) {
             return $this->assertCalled(Billing::RESTORE, $filter);
         });

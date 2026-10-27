@@ -1,23 +1,29 @@
 export type ProductType = 'subs' | 'inapp';
-export type PurchaseStatus = 'purchased' | 'pending' | 'cancelled' | 'already_owned' | 'failed';
+export type PurchaseStatus = 'purchased' | 'pending' | 'cancelled' | 'already_owned' | 'failed' | 'revoked';
 export type ReplacementMode = 'with_time_proration' | 'charge_prorated_price' | 'charge_full_price' | 'without_proration' | 'deferred';
 
 export interface Started { id: string; status: 'started' }
 
 export interface PricingPhase { price: string; micros: number; currency: string; period: string; cycles: number; recurrence: 'infinite' | 'finite' | 'none' }
-export interface SubscriptionOffer { basePlanId: string; offerId: string | null; offerTags: string[]; offerToken: string; freeTrial: boolean; introductory: boolean; phases: PricingPhase[] }
-export interface BasePlan { basePlanId: string; price: string; micros: number; currency: string; period: string; offerToken: string }
+export interface SubscriptionOffer { basePlanId: string; offerId: string | null; offerTags: string[]; offerToken?: string; freeTrial: boolean; introductory: boolean; phases: PricingPhase[] }
+export interface BasePlan { basePlanId: string; price: string; micros: number; currency: string; period: string; offerToken?: string }
 export interface OneTimeOffer { offerId: string | null; offerTags: string[]; offerToken: string | null; price: string; micros: number; currency: string }
 export interface Product {
     id: string; type: ProductType; title: string; name: string; description: string;
     plans: BasePlan[]; offers: SubscriptionOffer[];
     price?: string; micros?: number; currency?: string; oneTimeOffers: OneTimeOffer[];
+    /** iOS only */
+    kind?: 'auto_renewable' | 'non_renewing' | 'consumable' | 'non_consumable'; subscriptionGroupId?: string;
 }
 export interface Purchase {
     productId: string; productIds: string[]; type: ProductType | null; purchaseToken: string; orderId: string | null;
     purchaseTime: number; state: 'purchased' | 'pending' | 'unspecified'; pending: boolean; acknowledged: boolean;
     autoRenewing: boolean; quantity: number; accountId: string; profileId: string; packageName: string;
-    originalJson: string; signature: string;
+    /** Android only */
+    originalJson?: string; signature?: string;
+    /** iOS only (purchaseToken is the transaction id; accountId is the appAccountToken) */
+    platform?: 'ios'; transactionId?: string; originalTransactionId?: string; expiryTime?: number;
+    revoked?: boolean; environment?: string; jws?: string;
 }
 
 export interface ProductsLoadedPayload { id: string | null; type: ProductType; products: Product[]; unfetched: string[]; error?: string; code?: string }
@@ -38,11 +44,12 @@ export const Events: {
 };
 
 export function isAvailable(): Promise<boolean>;
+export function platform(): Promise<'android' | 'ios' | null>;
 export function products(productIds: string[], type?: ProductType, id?: string): Promise<Started>;
 export function purchase(options: PurchaseOptions): Promise<Started>;
 export function subscribe(options: Omit<PurchaseOptions, 'type'> & { basePlanId: string }): Promise<Started>;
 export function buy(options: Pick<PurchaseOptions, 'productId' | 'accountId' | 'offerId' | 'profileId' | 'id'>): Promise<Started>;
-export function restore(type?: ProductType, id?: string): Promise<Started>;
+export function restore(type?: ProductType, id?: string, sync?: boolean): Promise<Started>;
 export function acknowledge(purchaseToken: string, id?: string): Promise<Started>;
 export function consume(purchaseToken: string, id?: string): Promise<Started>;
 
@@ -55,7 +62,7 @@ export function onPurchaseConsumed(cb: (payload: PurchaseTokenResultPayload) => 
 
 declare const Billing: {
     SUBS: typeof SUBS; INAPP: typeof INAPP; Status: typeof Status; Events: typeof Events;
-    isAvailable: typeof isAvailable; products: typeof products; purchase: typeof purchase; subscribe: typeof subscribe;
+    isAvailable: typeof isAvailable; platform: typeof platform; products: typeof products; purchase: typeof purchase; subscribe: typeof subscribe;
     buy: typeof buy; restore: typeof restore; acknowledge: typeof acknowledge; consume: typeof consume;
     on: typeof on; onProductsLoaded: typeof onProductsLoaded; onPurchaseUpdated: typeof onPurchaseUpdated;
     onPurchasesRestored: typeof onPurchasesRestored; onPurchaseAcknowledged: typeof onPurchaseAcknowledged; onPurchaseConsumed: typeof onPurchaseConsumed;

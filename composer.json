@@ -1,9 +1,21 @@
 {
     "name": "protendai/nativephp-billing",
-    "description": "Google Play Billing for NativePHP Mobile v4: subscriptions with offers and free trials, one-time and consumable products, restore, acknowledge and consume, with purchase tokens for server-side verification. Android (iOS StoreKit 2 planned).",
+    "description": "In-app purchases for NativePHP Mobile v4: Google Play Billing on Android and StoreKit 2 on iOS. Subscriptions with offers and free trials, one-time and consumable products, restore, acknowledge and consume, with purchase tokens and signed transactions for server-side verification.",
     "type": "nativephp-plugin",
     "license": "MIT",
-    "keywords": ["nativephp", "nativephp-plugin", "billing", "in-app-purchase", "subscriptions", "google-play", "play-billing", "laravel", "mobile"],
+    "keywords": [
+        "nativephp",
+        "nativephp-plugin",
+        "billing",
+        "in-app-purchase",
+        "subscriptions",
+        "google-play",
+        "play-billing",
+        "app-store",
+        "storekit",
+        "laravel",
+        "mobile"
+    ],
     "homepage": "https://github.com/protendai/nativephp-billing",
     "support": {
         "issues": "https://github.com/protendai/nativephp-billing/issues",

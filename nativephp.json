@@ -1,13 +1,15 @@
 {
     "name": "protendai/nativephp-billing",
-    "version": "1.0.0",
-    "description": "Google Play Billing for NativePHP Mobile v4: subscriptions (base plans, free trials, intro offers, upgrades) and one-time products (consumable and non-consumable), with purchase tokens for server-side verification. Android only for now; iOS (StoreKit 2) is on the roadmap.",
+    "version": "1.1.0",
+    "description": "In-app purchases for NativePHP Mobile v4: Google Play Billing 8 on Android and StoreKit 2 on iOS. Subscriptions (base plans, free trials, intro offers, upgrades) and one-time products (consumable and non-consumable), with purchase tokens and signed transactions for server-side verification.",
     "namespace": "ProtendaiBilling",
     "keywords": [
         "billing",
         "in-app purchases",
         "subscriptions",
         "google play",
+        "app store",
+        "storekit",
         "payments"
     ],
     "category": "payments",
@@ -24,38 +26,39 @@
     "repository": "https://github.com/protendai/nativephp-billing",
     "funding": [],
     "platforms": [
-        "android"
+        "android",
+        "ios"
     ],
     "bridge_functions": [
         {
             "name": "ProtendaiBilling.Products",
             "android": "com.protendai.billing.BillingFunctions.Products",
             "ios": "ProtendaiBillingFunctions.Products",
-            "description": "Load subscription or one-time products with prices, base plans and offers. Async: ProductsLoaded."
+            "description": "Load subscription or one-time products with prices, plans and offers. Async: ProductsLoaded."
         },
         {
             "name": "ProtendaiBilling.Purchase",
             "android": "com.protendai.billing.BillingFunctions.Purchase",
             "ios": "ProtendaiBillingFunctions.Purchase",
-            "description": "Open Google Play's purchase sheet for a subscription base plan/offer or a one-time product. Async: PurchaseUpdated."
+            "description": "Open the Google Play or App Store purchase sheet for a subscription or a one-time product. Async: PurchaseUpdated."
         },
         {
             "name": "ProtendaiBilling.Restore",
             "android": "com.protendai.billing.BillingFunctions.Restore",
             "ios": "ProtendaiBillingFunctions.Restore",
-            "description": "List what the Google account owns now (active subscriptions, unconsumed one-time products). Async: PurchasesRestored."
+            "description": "List what the Google or Apple account owns now (active subscriptions, unconsumed one-time products). Async: PurchasesRestored."
         },
         {
             "name": "ProtendaiBilling.Acknowledge",
             "android": "com.protendai.billing.BillingFunctions.Acknowledge",
             "ios": "ProtendaiBillingFunctions.Acknowledge",
-            "description": "Acknowledge a purchase on the device (apps without a server). Async: PurchaseAcknowledged."
+            "description": "Acknowledge a purchase (Android, apps without a server) or finish its transaction (iOS). Async: PurchaseAcknowledged."
         },
         {
             "name": "ProtendaiBilling.Consume",
             "android": "com.protendai.billing.BillingFunctions.Consume",
             "ios": "ProtendaiBillingFunctions.Consume",
-            "description": "Consume a one-time purchase so it can be bought again. Async: PurchaseConsumed."
+            "description": "Consume a one-time purchase so it can be bought again (iOS: finish it). Async: PurchaseConsumed."
         }
     ],
     "events": [

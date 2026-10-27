@@ -1,18 +1,18 @@
 # NativePHP Billing
 
-Google Play Billing for [NativePHP Mobile](https://nativephp.com) v4. Sell subscriptions (base plans, free trials,
-introductory prices, upgrades and downgrades) and one-time products (consumable and non-consumable) from your
-Laravel app, and get the purchase token, order id, original JSON and signature to verify every purchase on your
-server.
+In-app purchases for [NativePHP Mobile](https://nativephp.com) v4: Google Play Billing on Android and StoreKit 2 on
+iOS, behind one facade and one set of events. Sell subscriptions (base plans, free trials, introductory prices,
+upgrades and downgrades) and one-time products (consumable and non-consumable) from your Laravel app, and get what
+you need to verify every purchase on your server (Play purchase token, App Store transaction id and signed JWS).
 
-Built on Play Billing Library 8.0.0.
+Built on Play Billing Library 8.0.0 and StoreKit 2.
 
 ## Platform support
 
 | Platform | Status |
 |---|---|
 | Android 5.0+ (API 21) | Supported: Google Play Billing Library 8.0.0 |
-| iOS | **Not supported yet.** `Billing::available()` returns `false`, and every call throws `BillingException` with code `UNSUPPORTED` (JavaScript calls reject with `error.code === 'UNSUPPORTED'`), so nothing fails silently. StoreKit 2 support is on the roadmap. |
+| iOS 15+ | Supported: StoreKit 2. See [iOS differences](#ios-differences). |
 
 ## Installation
 
@@ -29,6 +29,7 @@ php artisan native:plugin:register protendai/nativephp-billing
 
 The plugin adds `com.android.vending.BILLING` to the Android manifest and the
 `com.android.billingclient:billing:8.0.0` dependency. Nothing else: no runtime permission prompt, no Info.plist keys.
+On iOS, In-App Purchase needs no entitlement or Info.plist key; it is on for every App ID.
 
 ### Play Console
 
@@ -41,6 +42,16 @@ The plugin adds `com.android.vending.BILLING` to the Android manifest and the
 
 There are no API keys or environment variables on the device. Server-side verification needs a Google Cloud
 service account; see [Server-side verification](#server-side-verification).
+
+### App Store Connect
+
+1. Sign the *Paid Apps* agreement and add banking and tax details (Business → Agreements). Until it is active,
+   StoreKit returns no products.
+2. Under your app → *Subscriptions*, create one subscription group and one product per plan and period (for example
+   `premium_monthly`, `premium_yearly`, `standard_monthly`). Rank them in the group: a higher plan is an upgrade.
+   One-time products go under *In-App Purchases*.
+3. Test with a Sandbox account (Settings → Developer → Sandbox Apple Account on the device) or a StoreKit
+   configuration file in Xcode, and later through TestFlight.
 
 ## How it works
 
@@ -58,7 +69,33 @@ make calls too).
 
 **Purchases are never acknowledged automatically.** Google refunds any purchase that is not acknowledged (or
 consumed) within three days. Verify and acknowledge on your server (recommended), or call `acknowledge()` /
-`consume()` on the device if you have no server.
+`consume()` on the device if you have no server. On iOS the app itself finishes each transaction: call
+`acknowledge()` (or `consume()`) once your server has granted the purchase, or the App Store hands it to the app
+again on every launch.
+
+### iOS differences
+
+The same calls work on both platforms, with these differences on iOS:
+
+- **One product per plan and period.** Google has one subscription with base plans (`premium` / `monthly`); the App
+  Store has a product per period (`premium_monthly`). Pick ids with `Billing::platform()`. On iOS `basePlanId` is
+  ignored, and each subscription product lists one plan whose `basePlanId` is the product id.
+- **Upgrades and downgrades** happen by buying another product in the same subscription group; `oldPurchaseToken`
+  and `replacementMode` are ignored.
+- **Offers.** An introductory offer (free trial or intro price) the account is eligible for is applied by the App
+  Store; it is listed first in `offers` with `offerId` `introductory`. `offerId` / `offerTags` are ignored, and
+  promotional offers are not supported yet.
+- **purchaseToken is the App Store transaction id.** Purchases also carry `platform` (`ios`), `transactionId`,
+  `originalTransactionId`, `expiryTime`, `revoked`, `environment` (`Sandbox`, `Production`, `Xcode`; iOS 16+) and
+  `jws`, the signed transaction. `originalJson` and `signature` are Android only.
+- **accountId** becomes the transaction's `appAccountToken`, which must be a UUID. A UUID is used as it is; any
+  other id is turned into a name-based (version 5) UUID. `Billing::appAccountToken($accountId)` returns the same
+  value, so your server can match a transaction to the buyer. The purchase payload's `accountId` is that UUID.
+- **Updates nobody asked for** (renewals, Ask to Buy approvals, purchases on another device, offer codes) arrive as
+  `PurchaseUpdated` with `id` null once the plugin has been used in this launch; refunds arrive with status `revoked`
+  (already finished; nothing to grant).
+- **Restore button.** `restore(sync: true)` asks the App Store to sync first, which may ask the user to sign in.
+  App Review expects a Restore Purchases button; call it from there only. Plain `restore()` never prompts.
 
 ## Usage (PHP)
 
@@ -245,30 +282,32 @@ const buy = (basePlanId) => subscribe({ productId: 'premium', basePlanId, accoun
 </script>
 ```
 
-Exports: `isAvailable()`, `products(ids, type?, id?)`, `purchase(options)`, `subscribe(options)`, `buy(options)`,
-`restore(type?, id?)`, `acknowledge(token, id?)`, `consume(token, id?)`, `on(eventName, cb)`, `onProductsLoaded`,
+Exports: `isAvailable()`, `platform()`, `products(ids, type?, id?)`, `purchase(options)`, `subscribe(options)`, `buy(options)`,
+`restore(type?, id?, sync?)`, `acknowledge(token, id?)`, `consume(token, id?)`, `on(eventName, cb)`, `onProductsLoaded`,
 `onPurchaseUpdated`, `onPurchasesRestored`, `onPurchaseAcknowledged`, `onPurchaseConsumed` (each returns an
 unsubscribe function), and the constants `SUBS`, `INAPP`, `Status`, `Events`. Types are in `resources/js/index.d.ts`.
-Calls resolve with `{ id, status: 'started' }` and reject with an `Error` whose `code` is `UNSUPPORTED` or
+Calls resolve with `{ id, status: 'started' }` and reject with an `Error` whose `code` is
 `INVALID_ARGUMENT` when the device refuses.
 
 ## Methods
 
 Facade `Protendai\Billing\Facades\Billing` (or inject `Protendai\Billing\Billing`). All return the request id
-except `available()`. All throw `Protendai\Billing\Exceptions\BillingException` (`$e->errorCode`: `UNSUPPORTED`,
+except `available()`, `platform()` and `appAccountToken()`. All throw `Protendai\Billing\Exceptions\BillingException` (`$e->errorCode`:
 `INVALID_ARGUMENT`) when the device refuses outright; no event follows then. Outside the mobile runtime they do
 nothing and return the id.
 
 | Method | Description |
 |---|---|
-| `available(): bool` | `true` in an Android build with the plugin; `false` on iOS and outside the app. |
+| `available(): bool` | `true` in an Android or iOS build with the plugin; `false` outside the app. |
+| `platform(): ?string` | `'android'`, `'ios'`, or null outside the app. |
+| `appAccountToken(string $accountId): string` (static) | The UUID iOS stores for an `accountId`; use it on your server. |
 | `products(array $productIds, string $type = Billing::SUBS, ?string $id = null)` | Load products. `Billing::INAPP` for one-time products. |
 | `subscribe(string $productId, string $basePlanId, ?string $accountId = null, ?string $oldPurchaseToken = null, ?string $offerId = null, array $offerTags = [], ?string $replacementMode = null, ?string $profileId = null, ?string $id = null)` | Buy a subscription base plan, optionally an offer, optionally replacing another subscription. |
 | `buy(string $productId, ?string $accountId = null, ?string $offerId = null, ?string $profileId = null, ?string $id = null)` | Buy a one-time product. |
 | `purchase(string $productId, string $type = 'subs', array $options = [], ?string $id = null)` | Generic form; options: `basePlanId`, `offerId`, `offerTags`, `accountId`, `profileId`, `oldPurchaseToken`, `replacementMode`. |
-| `restore(?string $type = null, ?string $id = null)` | What the account owns now; both types unless one is given. |
-| `acknowledge(string $purchaseToken, ?string $id = null)` | Acknowledge on the device (apps without a server). |
-| `consume(string $purchaseToken, ?string $id = null)` | Consume a one-time purchase (also acknowledges it). |
+| `restore(?string $type = null, ?string $id = null, bool $sync = false)` | What the account owns now; both types unless one is given. `$sync`: iOS Restore button. |
+| `acknowledge(string $purchaseToken, ?string $id = null)` | Acknowledge on the device (Android apps without a server); finish the transaction (iOS). |
+| `consume(string $purchaseToken, ?string $id = null)` | Consume a one-time purchase (also acknowledges it); finish it (iOS). |
 
 `$accountId` / `$profileId` are your own opaque ids for the buyer (up to 64 characters; never an email or name).
 Google stores them on the purchase (`accountId` / `profileId` in the payload) and returns them to your server as
@@ -320,8 +359,9 @@ open (a pending payment completing: `id` is `null` then).
 | `cancelled` | The user closed the sheet. | Nothing. |
 | `already_owned` | The account already owns it (code `item_already_owned`): an earlier purchase wasn't consumed, or the subscription is active. | Call `restore()` and verify that purchase (consumables: consume it). |
 | `failed` | Anything else; `code` and `message` say why. | Show `message`. |
+| `revoked` | iOS: Apple refunded or revoked a purchase while the app was open (already finished). | Your server hears it from App Store notifications; refresh what you show. |
 
-`PurchaseUpdated::PURCHASED`, `PENDING`, `CANCELLED`, `ALREADY_OWNED`, `FAILED` and `$event->succeeded()` are
+`PurchaseUpdated::PURCHASED`, `PENDING`, `CANCELLED`, `ALREADY_OWNED`, `FAILED`, `REVOKED` and `$event->succeeded()` are
 available on the event class.
 
 Purchase shape (also used by `PurchasesRestored`):
@@ -334,8 +374,13 @@ Purchase shape (also used by `PurchasesRestored`):
     'state' => 'purchased', 'pending' => false, // state: purchased | pending | unspecified
     'acknowledged' => false, 'autoRenewing' => true, 'quantity' => 1,
     'accountId' => '42', 'profileId' => '', 'packageName' => 'com.example.app',
-    'originalJson' => '{…}', 'signature' => '…', // for local signature checks against your license key
+    'originalJson' => '{…}', 'signature' => '…', // Android: for local signature checks against your license key
 ]
+
+// iOS: purchaseToken and transactionId are the App Store transaction id, plus
+// 'platform' => 'ios', 'originalTransactionId' => '…', 'expiryTime' => 1764000000000,
+// 'revoked' => false, 'environment' => 'Sandbox', 'jws' => 'eyJ…' (signed transaction),
+// and 'accountId' is the appAccountToken UUID. No originalJson or signature.
 ```
 
 ### `PurchasesRestored`
@@ -362,7 +407,8 @@ Purchase shape (also used by `PurchasesRestored`):
 | `feature_not_supported` | The Play Store on the device is too old for this. |
 | `no_activity` | The app wasn't in the foreground to show the sheet. |
 | `superseded` | A second purchase started before the first sheet answered. |
-| `error` | Any other Play error; see `message`. |
+| `unverified` | iOS: StoreKit couldn't verify the transaction's signature. |
+| `error` | Any other store error; see `message`. |
 
 ## Server-side verification
 
@@ -371,9 +417,9 @@ Treat `purchased` as a claim, not proof. Send the `purchaseToken` (and `productI
 1. **Verify with Google.** Call the Google Play Developer API with a service account that has access to your app in
    the Play Console (*Users and permissions*, "View financial data" and "Manage orders and subscriptions"):
    - subscriptions: `GET https://androidpublisher.googleapis.com/androidpublisher/v3/applications/{package}/purchases/subscriptionsv2/tokens/{token}`
-     — check `subscriptionState` (`SUBSCRIPTION_STATE_ACTIVE`, `_IN_GRACE_PERIOD`, `_CANCELED` until `expiryTime`),
+     and check `subscriptionState` (`SUBSCRIPTION_STATE_ACTIVE`, `_IN_GRACE_PERIOD`, `_CANCELED` until `expiryTime`),
      `lineItems[].productId` and `expiryTime`;
-   - one-time products: `GET …/purchases/products/{productId}/tokens/{token}` — check `purchaseState == 0`.
+   - one-time products: `GET …/purchases/products/{productId}/tokens/{token}`, and check `purchaseState == 0`.
    - Match `externalAccountIdentifiers.obfuscatedExternalAccountId` (subscriptions) / `obfuscatedExternalAccountId`
      (products) with the user sending the token, so a token can't be replayed on another account.
 2. **Grant** the plan or item, idempotently: one row per purchase token (a unique index), because the app's request
@@ -386,6 +432,22 @@ Treat `purchased` as a claim, not proof. Send the `purchaseToken` (and `productI
 
 `originalJson` and `signature` let you verify a purchase offline against your app's Base64 RSA license key (Play
 Console → Monetization setup), but that doesn't tell you about refunds or cancellations, so prefer the API.
+
+### App Store (iOS)
+
+1. **Verify with Apple.** Either call the App Store Server API
+   (`GET https://api.storekit.itunes.apple.com/inApps/v1/transactions/{transactionId}`, or
+   `api.storekit-sandbox.itunes.apple.com` for Sandbox and TestFlight) with a JWT signed by an In-App Purchase key
+   from App Store Connect (Users and Access → Integrations), or verify the `jws` on the purchase yourself (ES256,
+   certificate chain in its `x5c` header up to Apple Root CA G3). Check `bundleId`, `productId`, `expiresDate`,
+   `revocationDate` and that `appAccountToken` equals `Billing::appAccountToken()` of the user sending it.
+2. **Grant** idempotently, keyed by `originalTransactionId` (it stays the same across renewals and upgrades within a
+   group).
+3. Answer the app, which then calls `acknowledge()` to finish the transaction.
+4. **App Store Server Notifications V2**: set your HTTPS endpoint in App Store Connect (App Information → App Store
+   Server Notifications, production and sandbox). Each POST has a `signedPayload` (JWS): verify it, read
+   `notificationType` (`DID_RENEW`, `EXPIRED`, `DID_CHANGE_RENEWAL_STATUS`, `REFUND`, `DID_FAIL_TO_RENEW`, ...)
+   and the `signedTransactionInfo`, and update your records.
 
 ### Real-time developer notifications (RTDN)
 
@@ -409,8 +471,9 @@ the app on start so purchases that never reached your server are sent again.
 
 ## Testing
 
-Use license testers and the Play Console's test cards ("Test card, always approves", "…declines", "Slow test card"
-for `pending`). Test subscriptions renew every few minutes.
+Android: use license testers and the Play Console's test cards ("Test card, always approves", "…declines", "Slow test card"
+for `pending`). Test subscriptions renew every few minutes. iOS: use a Sandbox Apple Account or a StoreKit
+configuration file in Xcode; Sandbox subscriptions renew every few minutes too.
 
 In your app's tests (`Native::test(...)`), the plugin registers FakeBridge macros:
 
@@ -428,7 +491,8 @@ The plugin's own tests: `composer install && composer test`.
 
 ## Limitations
 
-- Android only; iOS (StoreKit 2) is not implemented yet.
+- iOS: promotional offers, win-back offers, offer codes redemption sheet and the manage subscriptions sheet are not
+  wrapped yet.
 - One purchase sheet at a time; starting another closes out the first request with code `superseded`.
 - Events that arrive while the app has no live activity are held (up to 20) and delivered with the next billing call.
 - No quantity selection for multi-quantity one-time products yet (`quantity` is reported).
@@ -436,8 +500,7 @@ The plugin's own tests: `composer install && composer test`.
 
 ## Roadmap
 
-- iOS with StoreKit 2 (`Product.products`, `purchase()`, `Transaction.currentEntitlements`, signed JWS for
-  server verification), behind the same facade and events.
+- iOS promotional offers (signed on your server) and `showManageSubscriptions`.
 - Price change confirmation and in-app messaging (`showInAppMessages`) for payment declines.
 
 ## Support

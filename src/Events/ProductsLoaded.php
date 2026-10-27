@@ -5,7 +5,7 @@ namespace Protendai\Billing\Events;
 use Illuminate\Foundation\Events\Dispatchable;
 
 /**
- * Products from Google Play, answering Billing::products().
+ * Products from Google Play or the App Store, answering Billing::products().
  *
  * Each product: {id, type, title, name, description,
  *   plans: [{basePlanId, price, micros, currency, period, offerToken}],      (subscriptions: base plans at their regular price)
@@ -14,8 +14,13 @@ use Illuminate\Foundation\Events\Dispatchable;
  *   price, micros, currency,                                                  (one-time products)
  *   oneTimeOffers: [{offerId, offerTags, offerToken, price, micros, currency}]}  (one-time products, Play Billing 8 options/offers)
  *
- * Prices are formatted for the user's Play country ("ZAR 109.99"); micros are
+ * Prices are formatted for the user's store country ("ZAR 109.99"); micros are
  * the amount in millionths. Periods are ISO 8601 ("P1M", "P1Y", "P1W").
+ *
+ * On iOS a subscription has one plan whose basePlanId is the product id, no
+ * offerTokens, plus kind (auto_renewable, non_renewing, consumable,
+ * non_consumable) and subscriptionGroupId; an eligible introductory offer is
+ * listed first with offerId "introductory".
  */
 class ProductsLoaded
 {
@@ -23,7 +28,7 @@ class ProductsLoaded
 
     /**
      * @param  array<int, array<string, mixed>>  $products
-     * @param  list<string>  $unfetched  Ids Google Play didn't return (wrong id, not active, wrong type)
+     * @param  list<string>  $unfetched  Ids the store didn't return (wrong id, not active, wrong type)
      * @param  string|null  $error  Readable reason when the request failed
      * @param  string|null  $code  Stable failure code (see README)
      * @param  mixed  ...$extra  Keys added by newer native versions

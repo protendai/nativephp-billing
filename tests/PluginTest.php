@@ -17,7 +17,7 @@ it('has marketplace metadata', function () {
         ->and($this->manifest['name'])->toBe('protendai/nativephp-billing')
         ->and($this->manifest['namespace'])->toBe('ProtendaiBilling')
         ->and($this->manifest['license'])->toBe('MIT')
-        ->and($this->manifest['platforms'])->toBe(['android'])
+        ->and($this->manifest['platforms'])->toBe(['android', 'ios'])
         ->and($this->composer['name'])->toBe('protendai/nativephp-billing')
         ->and($this->composer['license'])->toBe('MIT')
         ->and($this->composer['keywords'])->toContain('nativephp-plugin')
@@ -29,7 +29,7 @@ it('needs Android 5.0 (Play Billing 8 minimum) and the billing permission', func
     expect($this->manifest['android']['min_version'])->toBe(21)
         ->and($this->manifest['android']['permissions'])->toBe(['com.android.vending.BILLING'])
         ->and($this->manifest['android']['dependencies']['implementation'])->toBe(['com.android.billingclient:billing:8.0.0'])
-        ->and($this->manifest['ios']['min_version'])->toBeString();
+        ->and($this->manifest['ios']['min_version'])->toBe('15.0');
 });
 
 it('maps every bridge function to the facade constants and both native classes', function () {
@@ -46,12 +46,31 @@ it('maps every bridge function to the facade constants and both native classes',
     expect($this->swift)->toContain('enum ProtendaiBillingFunctions');
     foreach ($functions as $name) {
         expect($this->kotlin)->toContain("class $name(private val activity: FragmentActivity) : BridgeFunction")
-            ->and($this->swift)->toContain("class $name: Unsupported");
+            ->and($this->swift)->toContain("class $name: BridgeFunction");
     }
 });
 
-it('answers on iOS with an UNSUPPORTED bridge error', function () {
-    expect($this->swift)->toContain('BridgeResponse.error(code: "UNSUPPORTED"');
+it('uses StoreKit 2 on iOS, with the same events and the PHP account token namespace', function () {
+    expect($this->swift)
+        ->toContain('import StoreKit')
+        ->toContain('Transaction.updates')
+        ->toContain('Transaction.currentEntitlements')
+        ->toContain('.appAccountToken(')
+        ->toContain('"Protendai\\\\Billing\\\\Events\\\\" + event')
+        ->toContain('UUID(uuidString: "'.Billing::ACCOUNT_TOKEN_NAMESPACE.'")')
+        ->not->toContain('UNSUPPORTED')
+        ->not->toMatch('/ftree/i');
+
+    foreach ($this->manifest['events'] as $event) {
+        $short = class_basename($event);
+        expect($this->swift)->toMatch('/(dispatch\\("|event: ")'.$short.'"/');
+
+        foreach ((new ReflectionClass($event))->getConstructor()->getParameters() as $parameter) {
+            if (! $parameter->isVariadic()) {
+                expect($this->swift)->toContain('"'.$parameter->getName().'"');
+            }
+        }
+    }
 });
 
 it('declares every event, and the Kotlin dispatches each with keys the constructor takes', function () {
