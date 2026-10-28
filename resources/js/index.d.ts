@@ -67,5 +67,6 @@ declare const Billing: {
     on: typeof on; onProductsLoaded: typeof onProductsLoaded; onPurchaseUpdated: typeof onPurchaseUpdated;
     onPurchasesRestored: typeof onPurchasesRestored; onPurchaseAcknowledged: typeof onPurchaseAcknowledged; onPurchaseConsumed: typeof onPurchaseConsumed;
 };
+export { products as Products, purchase as Purchase, restore as Restore, acknowledge as Acknowledge, consume as Consume };
 export { Billing };
 export default Billing;

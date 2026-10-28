@@ -6,7 +6,7 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
-## [1.1.0] - 2026-10-27
+## [1.1.0] - 2026-10-28
 
 ### Added
 - iOS support with StoreKit 2 (iOS 15+): products with prices, subscription periods and eligible introductory
@@ -15,6 +15,8 @@ All notable changes to this project are documented here. The format follows
   purchases on other devices and refunds. Same functions and events as Android.
 - `Billing::platform()` (`'android'`, `'ios'` or null) and `platform()` in JavaScript.
 - `Billing::appAccountToken($accountId)`: the UUID iOS stores for an account id, for matching transactions on the server.
+- JavaScript exports under the bridge function names too (`Products`, `Purchase`, `Restore`, `Acknowledge`,
+  `Consume`).
 - `restore(sync: true)`: asks the App Store to sync first (for a Restore Purchases button). Ignored on Android.
 - iOS purchase fields `platform`, `transactionId`, `originalTransactionId`, `expiryTime`, `revoked`, `environment`
   and `jws`; product fields `kind` and `subscriptionGroupId`; `PurchaseUpdated` status `revoked`; failure code
@@ -60,5 +62,6 @@ First public release, extracted from an in-app plugin.
   bridge namespace `ProtendaiBilling`; MIT licence.
 - Native sources moved to `resources/android/src` and `resources/ios/Sources`.
 
-[Unreleased]: https://github.com/protendai/nativephp-billing/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/protendai/nativephp-billing/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/protendai/nativephp-billing/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/protendai/nativephp-billing/releases/tag/v1.0.0

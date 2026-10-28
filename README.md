@@ -7,6 +7,10 @@ you need to verify every purchase on your server (Play purchase token, App Store
 
 Built on Play Billing Library 8.0.0 and StoreKit 2.
 
+Used in production by [fTree](https://ftree.co.zw) for its Standard and Premium subscriptions:
+[fTree on Google Play](https://play.google.com/store/apps/details?id=com.protendai.ftree), and on the App Store
+(in review). Install it to see the plugin's purchase, upgrade and restore flows on a real device.
+
 ## Platform support
 
 | Platform | Status |
@@ -503,9 +507,15 @@ The plugin's own tests: `composer install && composer test`.
 - iOS promotional offers (signed on your server) and `showManageSubscriptions`.
 - Price change confirmation and in-app messaging (`showInAppMessages`) for payment declines.
 
+## Laravel Boost
+
+The plugin ships Boost guidelines (`resources/boost/guidelines/core.blade.php`): run `php artisan boost:install` in
+your app and your AI assistant knows the methods, events and server-side checks.
+
 ## Support
 
-Questions and bugs: [GitHub issues](https://github.com/protendai/nativephp-billing/issues).
+Questions and bugs: [GitHub issues](https://github.com/protendai/nativephp-billing/issues), or email
+karumatendai@gmail.com.
 
 ## License
 

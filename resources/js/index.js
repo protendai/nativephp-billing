@@ -214,6 +214,9 @@ export const onPurchaseAcknowledged = (cb) => on(Events.PurchaseAcknowledged, cb
 /** @param {(payload: {id: string|null, purchaseToken: string, ok: boolean, error?: string, code?: string}) => void} cb */
 export const onPurchaseConsumed = (cb) => on(Events.PurchaseConsumed, cb);
 
+// The bridge functions under their own names (ProtendaiBilling.Products and so on).
+export { products as Products, purchase as Purchase, restore as Restore, acknowledge as Acknowledge, consume as Consume };
+
 export const Billing = {
     SUBS, INAPP, Status, Events,
     isAvailable, platform, products, purchase, subscribe, buy, restore, acknowledge, consume,
